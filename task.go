@@ -47,6 +47,14 @@ func NewTask(queue Queue, opt *TaskOptions) *Task {
 	}
 }
 
+func (t *Task) Options() *TaskOptions {
+	return t.opt
+}
+
+func (t *Task) HandleMessage(msg *Message) error {
+	return nil
+}
+
 func (t *Task) Add(msg *Message) error {
 	return nil
 }

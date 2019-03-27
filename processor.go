@@ -660,42 +660,33 @@ func (p *Processor) process(msg *Message) error {
 		return nil
 	}
 
-	task := p.q.Task(msg)
-	msg.Delay = exponentialBackoff(task, msg.ReservedCount)
-
-	start := time.Now()
-	err := p.q.HandleMessage(msg)
-	if err == errBatched {
-		return nil
-	}
-	p.updateAvgDuration(time.Since(start))
-	if err == errBatchProcessed {
-		return nil
+	task := p.q.Task(msg.TaskName)
+	if task == nil {
+		return fmt.Errorf("msgqueue: %s does not have task=%q", p.q, msg.TaskName)
 	}
 
+	err := task.HandleMessage(msg)
 	if err == nil {
 		p.resetPause()
-	}
-	p.Put(msg, err)
-
-	return err
-}
-
-func (p *Processor) Put(msg *Message, err error) {
-	if err == nil {
 		atomic.AddUint32(&p.processed, 1)
 		p.delete(msg, err)
-		return
+		return nil
 	}
 
+	taskOpt := task.Options()
+
 	atomic.AddUint32(&p.errCount, 1)
-	if msg.ReservedCount < p.opt.RetryLimit {
+	if msg.ReservedCount < taskOpt.RetryLimit {
+		msg.Delay = exponentialBackoff(
+			taskOpt.MinBackoff, taskOpt.MaxBackoff, msg.ReservedCount)
 		atomic.AddUint32(&p.retries, 1)
 		p.release(msg, err)
 	} else {
 		atomic.AddUint32(&p.fails, 1)
 		p.delete(msg, err)
 	}
+
+	return err
 }
 
 // Purge discards messages from the internal queue.
@@ -750,7 +741,7 @@ func (p *Processor) delete(msg *Message, err error) {
 			p.q, msg.ReservedCount, err)
 
 		msg.StickyErr = err
-		if err := p.q.HandleMessage(msg); err != nil {
+		if err := p.q.Task(msg.TaskName).HandleMessage(msg); err != nil {
 			internal.Logf("%s fallback handler failed: %s", p.q, err)
 		}
 	}

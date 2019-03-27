@@ -12,7 +12,8 @@ import (
 )
 
 type Queue interface {
-	Handler
+	NewTask(opt *TaskOptions) *Task
+	Task(name string) *Task
 
 	Name() string
 	Processor() *Processor

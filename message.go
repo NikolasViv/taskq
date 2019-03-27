@@ -23,6 +23,9 @@ type Message struct {
 	// are processed only once.
 	Name string
 
+	// Task name.
+	TaskName string
+
 	// Delay specifies the duration the queue must wait
 	// before executing the message.
 	Delay time.Duration
