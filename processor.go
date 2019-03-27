@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/bsm/redis-lock"
+	lock "github.com/bsm/redis-lock"
 	"golang.org/x/time/rate"
 
 	"github.com/go-msgqueue/msgqueue/internal"
@@ -103,10 +103,7 @@ func (l *limiter) Limited() bool {
 // and then either releases or deletes messages from the queue.
 type Processor struct {
 	q   Queue
-	opt *Options
-
-	handler         Handler
-	fallbackHandler Handler
+	opt *QueueOptions
 
 	buffer  chan *Message
 	limiter *limiter
@@ -139,7 +136,7 @@ type Processor struct {
 }
 
 // New creates new Processor for the queue using provided processing options.
-func NewProcessor(q Queue, opt *Options) *Processor {
+func NewProcessor(q Queue, opt *QueueOptions) *Processor {
 	if opt.Name == "" {
 		opt.Name = q.Name()
 	}
@@ -157,16 +154,11 @@ func NewProcessor(q Queue, opt *Options) *Processor {
 		},
 	}
 
-	p.handler = NewHandler(opt.Handler, opt.Compress)
-	if opt.FallbackHandler != nil {
-		p.fallbackHandler = NewHandler(opt.FallbackHandler, opt.Compress)
-	}
-
 	return p
 }
 
 // Starts creates new Processor and starts it.
-func StartProcessor(q Queue, opt *Options) *Processor {
+func StartProcessor(q Queue, opt *QueueOptions) *Processor {
 	p := NewProcessor(q, opt)
 	if err := p.Start(); err != nil {
 		panic(err)
@@ -178,7 +170,7 @@ func (p *Processor) Queue() Queue {
 	return p.q
 }
 
-func (p *Processor) Options() *Options {
+func (p *Processor) Options() *QueueOptions {
 	return p.opt
 }
 
@@ -668,11 +660,11 @@ func (p *Processor) process(msg *Message) error {
 		return nil
 	}
 
-	msg.Delay = exponentialBackoff(
-		p.opt.MinBackoff, p.opt.MaxBackoff, msg.ReservedCount)
+	task := p.q.Task(msg)
+	msg.Delay = exponentialBackoff(task, msg.ReservedCount)
 
 	start := time.Now()
-	err := p.handler.HandleMessage(msg)
+	err := p.q.HandleMessage(msg)
 	if err == errBatched {
 		return nil
 	}
@@ -684,12 +676,12 @@ func (p *Processor) process(msg *Message) error {
 	if err == nil {
 		p.resetPause()
 	}
-	p.put(msg, err)
+	p.Put(msg, err)
 
 	return err
 }
 
-func (p *Processor) put(msg *Message, err error) {
+func (p *Processor) Put(msg *Message, err error) {
 	if err == nil {
 		atomic.AddUint32(&p.processed, 1)
 		p.delete(msg, err)
@@ -704,10 +696,6 @@ func (p *Processor) put(msg *Message, err error) {
 		atomic.AddUint32(&p.fails, 1)
 		p.delete(msg, err)
 	}
-}
-
-func (p *Processor) Put(msg *Message) {
-	p.put(msg, msg.Err)
 }
 
 // Purge discards messages from the internal queue.
@@ -761,10 +749,9 @@ func (p *Processor) delete(msg *Message, err error) {
 		internal.Logf("%s handler failed after retry=%d: %s",
 			p.q, msg.ReservedCount, err)
 
-		if p.fallbackHandler != nil {
-			if err := p.fallbackHandler.HandleMessage(msg); err != nil {
-				internal.Logf("%s fallback handler failed: %s", p.q, err)
-			}
+		msg.StickyErr = err
+		if err := p.q.HandleMessage(msg); err != nil {
+			internal.Logf("%s fallback handler failed: %s", p.q, err)
 		}
 	}
 

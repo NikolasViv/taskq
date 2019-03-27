@@ -26,95 +26,95 @@ func azsqsManager() msgqueue.Manager {
 }
 
 func TestSQSProcessor(t *testing.T) {
-	testProcessor(t, azsqsManager(), &msgqueue.Options{
+	testProcessor(t, azsqsManager(), &msgqueue.QueueOptions{
 		Name: queueName("processor"),
 	})
 }
 
 func TestSQSCompress(t *testing.T) {
-	testProcessor(t, azsqsManager(), &msgqueue.Options{
+	testProcessor(t, azsqsManager(), &msgqueue.QueueOptions{
 		Name:     queueName("compress"),
 		Compress: true,
 	})
 }
 
 func TestSQSFallback(t *testing.T) {
-	testFallback(t, azsqsManager(), &msgqueue.Options{
+	testFallback(t, azsqsManager(), &msgqueue.QueueOptions{
 		Name: queueName("fallback"),
 	})
 }
 
 func TestSQSDelay(t *testing.T) {
-	testDelay(t, azsqsManager(), &msgqueue.Options{
+	testDelay(t, azsqsManager(), &msgqueue.QueueOptions{
 		Name: queueName("delay"),
 	})
 }
 
 func TestSQSRetry(t *testing.T) {
-	testRetry(t, azsqsManager(), &msgqueue.Options{
+	testRetry(t, azsqsManager(), &msgqueue.QueueOptions{
 		Name: queueName("retry"),
 	})
 }
 
 func TestSQSNamedMessage(t *testing.T) {
-	testNamedMessage(t, azsqsManager(), &msgqueue.Options{
+	testNamedMessage(t, azsqsManager(), &msgqueue.QueueOptions{
 		Name: queueName("named-message"),
 	})
 }
 
 func TestSQSCallOnce(t *testing.T) {
-	testCallOnce(t, azsqsManager(), &msgqueue.Options{
+	testCallOnce(t, azsqsManager(), &msgqueue.QueueOptions{
 		Name: queueName("call-once"),
 	})
 }
 
 func TestSQSLen(t *testing.T) {
-	testLen(t, azsqsManager(), &msgqueue.Options{
+	testLen(t, azsqsManager(), &msgqueue.QueueOptions{
 		Name: queueName("queue-len"),
 	})
 }
 
 func TestSQSRateLimit(t *testing.T) {
-	testRateLimit(t, azsqsManager(), &msgqueue.Options{
+	testRateLimit(t, azsqsManager(), &msgqueue.QueueOptions{
 		Name: queueName("rate-limit"),
 	})
 }
 
 func TestSQSErrorDelay(t *testing.T) {
-	testErrorDelay(t, azsqsManager(), &msgqueue.Options{
+	testErrorDelay(t, azsqsManager(), &msgqueue.QueueOptions{
 		Name: queueName("delayer"),
 	})
 }
 
 func TestSQSWorkerLimit(t *testing.T) {
-	testWorkerLimit(t, azsqsManager(), &msgqueue.Options{
+	testWorkerLimit(t, azsqsManager(), &msgqueue.QueueOptions{
 		Name: queueName("worker-limit"),
 	})
 }
 
 func TestSQSInvalidCredentials(t *testing.T) {
 	man := azsqs.NewManager(awsSQS(), "123")
-	testInvalidCredentials(t, man, &msgqueue.Options{
+	testInvalidCredentials(t, man, &msgqueue.QueueOptions{
 		Name: queueName("invalid-credentials"),
 	})
 }
 
 func TestSQSInvalidCredentialsAndCompress(t *testing.T) {
 	man := azsqs.NewManager(awsSQS(), "123")
-	testInvalidCredentials(t, man, &msgqueue.Options{
+	testInvalidCredentials(t, man, &msgqueue.QueueOptions{
 		Name:     queueName("invalid-credentials-and-compress"),
 		Compress: true,
 	})
 }
 
 func TestSQSBatchProcessorSmallMessage(t *testing.T) {
-	testBatchProcessor(t, azsqsManager(), &msgqueue.Options{
+	testBatchProcessor(t, azsqsManager(), &msgqueue.QueueOptions{
 		Name: queueName("batch-processor-small-message"),
 	}, 100)
 }
 
 func TestSQSBatchProcessorLarge(t *testing.T) {
-	testBatchProcessor(t, azsqsManager(), &msgqueue.Options{
+	testBatchProcessor(t, azsqsManager(), &msgqueue.QueueOptions{
 		Name: queueName("batch-processor-large-message"),
 	}, 64000)
 }

@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-msgqueue/msgqueue"
 	"github.com/go-msgqueue/msgqueue/internal"
+	"github.com/go-msgqueue/msgqueue/internal/base"
 	"github.com/go-msgqueue/msgqueue/internal/msgutil"
 	"github.com/go-msgqueue/msgqueue/memqueue"
 )
@@ -22,7 +23,7 @@ type manager struct {
 
 var _ msgqueue.Manager = (*manager)(nil)
 
-func (m *manager) NewQueue(opt *msgqueue.Options) msgqueue.Queue {
+func (m *manager) NewQueue(opt *msgqueue.QueueOptions) msgqueue.Queue {
 	q := mq.ConfigNew(opt.Name, m.cfg)
 	return NewQueue(q, opt)
 }
@@ -42,13 +43,17 @@ func NewManager(cfg *iron_config.Settings) msgqueue.Manager {
 }
 
 type Queue struct {
+	base.Queue
+
 	q   mq.Queue
-	opt *msgqueue.Options
+	opt *msgqueue.QueueOptions
 
 	addQueue   *memqueue.Queue
+	addTask    *msgqueue.Task
 	addBatcher *msgqueue.Batcher
 
 	delQueue   *memqueue.Queue
+	delTask    *msgqueue.Task
 	delBatcher *msgqueue.Batcher
 
 	p *msgqueue.Processor
@@ -56,7 +61,7 @@ type Queue struct {
 
 var _ msgqueue.Queue = (*Queue)(nil)
 
-func NewQueue(mqueue mq.Queue, opt *msgqueue.Options) *Queue {
+func NewQueue(mqueue mq.Queue, opt *msgqueue.QueueOptions) *Queue {
 	if opt.Name == "" {
 		opt.Name = mqueue.Name
 	}
@@ -75,35 +80,34 @@ func NewQueue(mqueue mq.Queue, opt *msgqueue.Options) *Queue {
 }
 
 func (q *Queue) initAddQueue() {
-	opt := &msgqueue.Options{
+	q.addQueue = memqueue.NewQueue(&msgqueue.QueueOptions{
 		Name:      "ironmq:" + q.opt.Name + ":add",
 		GroupName: q.opt.GroupName,
 
 		BufferSize: 1000,
 		RetryLimit: 3,
 		MinBackoff: time.Second,
-		Handler:    msgqueue.HandlerFunc(q.add),
 
 		Redis: q.opt.Redis,
-	}
-	if q.opt.Handler != nil {
-		h := msgqueue.NewHandler(q.opt.Handler, q.opt.Compress)
-		opt.FallbackHandler = msgutil.UnwrapMessageHandler(h)
-	}
-	q.addQueue = memqueue.NewQueue(opt)
+	})
+	q.addTask = q.addQueue.NewTask(&msgqueue.TaskOptions{
+		Handler: msgqueue.HandlerFunc(q.add),
+	})
 }
 
 func (q *Queue) initDelQueue() {
-	q.delQueue = memqueue.NewQueue(&msgqueue.Options{
+	q.delQueue = memqueue.NewQueue(&msgqueue.QueueOptions{
 		Name:      "ironmq:" + q.opt.Name + ":delete",
 		GroupName: q.opt.GroupName,
 
 		BufferSize: 1000,
 		RetryLimit: 3,
 		MinBackoff: time.Second,
-		Handler:    msgqueue.HandlerFunc(q.delBatcherAdd),
 
 		Redis: q.opt.Redis,
+	})
+	q.delTask = q.delQueue.NewTask(&msgqueue.TaskOptions{
+		Handler: msgqueue.HandlerFunc(q.delBatcherAdd),
 	})
 	q.delBatcher = msgqueue.NewBatcher(q.delQueue.Processor(), &msgqueue.BatcherOptions{
 		Handler:     q.deleteBatch,
@@ -119,24 +123,8 @@ func (q *Queue) String() string {
 	return fmt.Sprintf("Queue<Name=%s>", q.Name())
 }
 
-func (q *Queue) Options() *msgqueue.Options {
+func (q *Queue) Options() *msgqueue.QueueOptions {
 	return q.opt
-}
-
-func (q *Queue) GetAddQueue() *memqueue.Queue {
-	return q.addQueue
-}
-
-func (q *Queue) GetDeleteQueue() *memqueue.Queue {
-	return q.delQueue
-}
-
-func (q *Queue) Len() (int, error) {
-	queueInfo, err := q.q.Info()
-	if err != nil {
-		return 0, err
-	}
-	return queueInfo.Size, nil
 }
 
 func (q *Queue) Processor() *msgqueue.Processor {
@@ -151,24 +139,18 @@ func (q *Queue) createQueue() error {
 	return err
 }
 
+func (q *Queue) Len() (int, error) {
+	queueInfo, err := q.q.Info()
+	if err != nil {
+		return 0, err
+	}
+	return queueInfo.Size, nil
+}
+
 // Add adds message to the queue.
 func (q *Queue) Add(msg *msgqueue.Message) error {
 	msg = msgutil.WrapMessage(msg)
-	return q.addQueue.Add(msg)
-}
-
-// Call creates a message using the args and adds it to the queue.
-func (q *Queue) Call(args ...interface{}) error {
-	msg := msgqueue.NewMessage(args...)
-	return q.Add(msg)
-}
-
-// CallOnce works like Call, but it returns ErrDuplicate if message
-// with such args was already added in a period.
-func (q *Queue) CallOnce(period time.Duration, args ...interface{}) error {
-	msg := msgqueue.NewMessage(args...)
-	msg.SetDelayName(period, args...)
-	return q.Add(msg)
+	return q.addTask.Add(msg)
 }
 
 func (q *Queue) ReserveN(n int, reservationTimeout time.Duration, waitTimeout time.Duration) ([]*msgqueue.Message, error) {

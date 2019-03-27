@@ -24,7 +24,7 @@ func timeSinceCeil(start time.Time) time.Duration {
 
 func Example_retryOnError() {
 	start := time.Now()
-	q := memqueue.NewQueue(&msgqueue.Options{
+	q := memqueue.NewQueue(&msgqueue.QueueOptions{
 		Handler: func() error {
 			fmt.Println("retried in", timeSince(start))
 			return errors.New("fake error")
@@ -45,7 +45,7 @@ func Example_retryOnError() {
 
 func Example_messageDelay() {
 	start := time.Now()
-	q := memqueue.NewQueue(&msgqueue.Options{
+	q := memqueue.NewQueue(&msgqueue.QueueOptions{
 		Handler: func() {
 			fmt.Println("processed with delay", timeSince(start))
 		},
@@ -63,7 +63,7 @@ func Example_messageDelay() {
 
 func Example_rateLimit() {
 	start := time.Now()
-	q := memqueue.NewQueue(&msgqueue.Options{
+	q := memqueue.NewQueue(&msgqueue.QueueOptions{
 		Handler:   func() {},
 		Redis:     redisRing(),
 		RateLimit: rate.Every(time.Second),
@@ -82,7 +82,7 @@ func Example_rateLimit() {
 }
 
 func Example_once() {
-	q := memqueue.NewQueue(&msgqueue.Options{
+	q := memqueue.NewQueue(&msgqueue.QueueOptions{
 		Handler: func(name string) {
 			fmt.Println("hello", name)
 		},

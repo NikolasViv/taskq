@@ -8,13 +8,14 @@ import (
 
 	"github.com/go-msgqueue/msgqueue"
 	"github.com/go-msgqueue/msgqueue/internal"
+	"github.com/go-msgqueue/msgqueue/internal/base"
 )
 
 type manager struct{}
 
 var _ msgqueue.Manager = (*manager)(nil)
 
-func (manager) NewQueue(opt *msgqueue.Options) msgqueue.Queue {
+func (manager) NewQueue(opt *msgqueue.QueueOptions) msgqueue.Queue {
 	return NewQueue(opt)
 }
 
@@ -31,7 +32,9 @@ func NewManager() msgqueue.Manager {
 }
 
 type Queue struct {
-	opt *msgqueue.Options
+	base.Queue
+
+	opt *msgqueue.QueueOptions
 
 	sync    bool
 	noDelay bool
@@ -42,7 +45,7 @@ type Queue struct {
 
 var _ msgqueue.Queue = (*Queue)(nil)
 
-func NewQueue(opt *msgqueue.Options) *Queue {
+func NewQueue(opt *msgqueue.QueueOptions) *Queue {
 	opt.Init()
 
 	q := Queue{
@@ -65,7 +68,7 @@ func (q *Queue) String() string {
 	return fmt.Sprintf("Memqueue<Name=%s>", q.Name())
 }
 
-func (q *Queue) Options() *msgqueue.Options {
+func (q *Queue) Options() *msgqueue.QueueOptions {
 	return q.opt
 }
 
@@ -107,18 +110,8 @@ func (q *Queue) CloseTimeout(timeout time.Duration) error {
 	return q.p.StopTimeout(timeout)
 }
 
-// Call creates a message using the args and adds it to the queue.
-func (q *Queue) Call(args ...interface{}) error {
-	msg := msgqueue.NewMessage(args...)
-	return q.Add(msg)
-}
-
-// CallOnce works like Call, but it returns ErrDuplicate if message
-// with such args was already added in a period.
-func (q *Queue) CallOnce(period time.Duration, args ...interface{}) error {
-	msg := msgqueue.NewMessage(args...)
-	msg.SetDelayName(period, args...)
-	return q.Add(msg)
+func (q *Queue) Len() (int, error) {
+	return q.Processor().Len(), nil
 }
 
 // Add adds message to the queue.
@@ -128,10 +121,6 @@ func (q *Queue) Add(msg *msgqueue.Message) error {
 	}
 	q.wg.Add(1)
 	return q.enqueueMessage(msg)
-}
-
-func (q *Queue) Len() (int, error) {
-	return q.Processor().Len(), nil
 }
 
 func (q *Queue) enqueueMessage(msg *msgqueue.Message) error {

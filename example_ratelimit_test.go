@@ -20,7 +20,7 @@ func (RateLimitError) Delay() time.Duration {
 
 func Example_customRateLimit() {
 	start := time.Now()
-	q := memqueue.NewQueue(&msgqueue.Options{
+	q := memqueue.NewQueue(&msgqueue.QueueOptions{
 		Handler: func() error {
 			fmt.Println("retried in", timeSince(start))
 			return RateLimitError("calm down")

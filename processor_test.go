@@ -68,7 +68,7 @@ func redisRing() *redis.Ring {
 	return ring
 }
 
-func testProcessor(t *testing.T, man msgqueue.Manager, opt *msgqueue.Options) {
+func testProcessor(t *testing.T, man msgqueue.Manager, opt *msgqueue.QueueOptions) {
 	t.Parallel()
 
 	ch := make(chan time.Time)
@@ -114,7 +114,7 @@ func testProcessor(t *testing.T, man msgqueue.Manager, opt *msgqueue.Options) {
 	}
 }
 
-func testFallback(t *testing.T, man msgqueue.Manager, opt *msgqueue.Options) {
+func testFallback(t *testing.T, man msgqueue.Manager, opt *msgqueue.QueueOptions) {
 	t.Parallel()
 
 	opt.Handler = func() error {
@@ -164,7 +164,7 @@ func testFallback(t *testing.T, man msgqueue.Manager, opt *msgqueue.Options) {
 	}
 }
 
-func testDelay(t *testing.T, man msgqueue.Manager, opt *msgqueue.Options) {
+func testDelay(t *testing.T, man msgqueue.Manager, opt *msgqueue.QueueOptions) {
 	t.Parallel()
 
 	handlerCh := make(chan time.Time, 10)
@@ -210,7 +210,7 @@ func testDelay(t *testing.T, man msgqueue.Manager, opt *msgqueue.Options) {
 	}
 }
 
-func testRetry(t *testing.T, man msgqueue.Manager, opt *msgqueue.Options) {
+func testRetry(t *testing.T, man msgqueue.Manager, opt *msgqueue.QueueOptions) {
 	t.Parallel()
 
 	handlerCh := make(chan time.Time, 10)
@@ -258,7 +258,7 @@ func testRetry(t *testing.T, man msgqueue.Manager, opt *msgqueue.Options) {
 	}
 }
 
-func testNamedMessage(t *testing.T, man msgqueue.Manager, opt *msgqueue.Options) {
+func testNamedMessage(t *testing.T, man msgqueue.Manager, opt *msgqueue.QueueOptions) {
 	t.Parallel()
 
 	ch := make(chan time.Time, 10)
@@ -315,7 +315,7 @@ func testNamedMessage(t *testing.T, man msgqueue.Manager, opt *msgqueue.Options)
 	}
 }
 
-func testCallOnce(t *testing.T, man msgqueue.Manager, opt *msgqueue.Options) {
+func testCallOnce(t *testing.T, man msgqueue.Manager, opt *msgqueue.QueueOptions) {
 	t.Parallel()
 
 	ch := make(chan time.Time, 10)
@@ -367,7 +367,7 @@ func testCallOnce(t *testing.T, man msgqueue.Manager, opt *msgqueue.Options) {
 	}
 }
 
-func testLen(t *testing.T, man msgqueue.Manager, opt *msgqueue.Options) {
+func testLen(t *testing.T, man msgqueue.Manager, opt *msgqueue.QueueOptions) {
 	const N = 10
 
 	t.Parallel()
@@ -399,7 +399,7 @@ func testLen(t *testing.T, man msgqueue.Manager, opt *msgqueue.Options) {
 	}
 }
 
-func testRateLimit(t *testing.T, man msgqueue.Manager, opt *msgqueue.Options) {
+func testRateLimit(t *testing.T, man msgqueue.Manager, opt *msgqueue.QueueOptions) {
 	t.Parallel()
 
 	var count int64
@@ -446,7 +446,7 @@ func testRateLimit(t *testing.T, man msgqueue.Manager, opt *msgqueue.Options) {
 	}
 }
 
-func testErrorDelay(t *testing.T, man msgqueue.Manager, opt *msgqueue.Options) {
+func testErrorDelay(t *testing.T, man msgqueue.Manager, opt *msgqueue.QueueOptions) {
 	t.Parallel()
 
 	handlerCh := make(chan time.Time, 10)
@@ -482,7 +482,7 @@ func testErrorDelay(t *testing.T, man msgqueue.Manager, opt *msgqueue.Options) {
 	}
 }
 
-func testWorkerLimit(t *testing.T, man msgqueue.Manager, opt *msgqueue.Options) {
+func testWorkerLimit(t *testing.T, man msgqueue.Manager, opt *msgqueue.QueueOptions) {
 	t.Parallel()
 
 	ch := make(chan time.Time, 10)
@@ -519,7 +519,7 @@ func testWorkerLimit(t *testing.T, man msgqueue.Manager, opt *msgqueue.Options) 
 	}
 }
 
-func testInvalidCredentials(t *testing.T, man msgqueue.Manager, opt *msgqueue.Options) {
+func testInvalidCredentials(t *testing.T, man msgqueue.Manager, opt *msgqueue.QueueOptions) {
 	t.Parallel()
 
 	ch := make(chan time.Time, 10)
@@ -550,7 +550,7 @@ func testInvalidCredentials(t *testing.T, man msgqueue.Manager, opt *msgqueue.Op
 }
 
 func testBatchProcessor(
-	t *testing.T, man msgqueue.Manager, opt *msgqueue.Options, messageSize int,
+	t *testing.T, man msgqueue.Manager, opt *msgqueue.QueueOptions, messageSize int,
 ) {
 	t.Parallel()
 
@@ -630,7 +630,7 @@ func purge(t *testing.T, q msgqueue.Queue) {
 		return
 	}
 
-	p := msgqueue.NewProcessor(q, &msgqueue.Options{
+	p := msgqueue.NewProcessor(q, &msgqueue.QueueOptions{
 		Handler: func() {},
 	})
 	err = p.ProcessAll()

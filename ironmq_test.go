@@ -15,68 +15,68 @@ func ironmqManager() msgqueue.Manager {
 }
 
 func TestIronmqProcessor(t *testing.T) {
-	testProcessor(t, ironmqManager(), &msgqueue.Options{
+	testProcessor(t, ironmqManager(), &msgqueue.QueueOptions{
 		Name: queueName("ironmq-processor"),
 	})
 }
 
 func TestIronmqCompress(t *testing.T) {
-	testProcessor(t, ironmqManager(), &msgqueue.Options{
+	testProcessor(t, ironmqManager(), &msgqueue.QueueOptions{
 		Name:     queueName("ironmq-compress"),
 		Compress: true,
 	})
 }
 
 func TestIronmqFallback(t *testing.T) {
-	testFallback(t, ironmqManager(), &msgqueue.Options{
+	testFallback(t, ironmqManager(), &msgqueue.QueueOptions{
 		Name: queueName("ironmq-fallback"),
 	})
 }
 
 func TestIronmqDelay(t *testing.T) {
-	testDelay(t, ironmqManager(), &msgqueue.Options{
+	testDelay(t, ironmqManager(), &msgqueue.QueueOptions{
 		Name: queueName("ironmq-delay"),
 	})
 }
 
 func TestIronmqRetry(t *testing.T) {
-	testRetry(t, ironmqManager(), &msgqueue.Options{
+	testRetry(t, ironmqManager(), &msgqueue.QueueOptions{
 		Name: queueName("ironmq-retry"),
 	})
 }
 
 func TestIronmqNamedMessage(t *testing.T) {
-	testNamedMessage(t, ironmqManager(), &msgqueue.Options{
+	testNamedMessage(t, ironmqManager(), &msgqueue.QueueOptions{
 		Name: queueName("ironmq-named-message"),
 	})
 }
 
 func TestIronmqCallOnce(t *testing.T) {
-	testCallOnce(t, ironmqManager(), &msgqueue.Options{
+	testCallOnce(t, ironmqManager(), &msgqueue.QueueOptions{
 		Name: queueName("ironmq-call-once"),
 	})
 }
 
 func TestIronmqLen(t *testing.T) {
-	testLen(t, ironmqManager(), &msgqueue.Options{
+	testLen(t, ironmqManager(), &msgqueue.QueueOptions{
 		Name: queueName("ironmq-len"),
 	})
 }
 
 func TestIronmqRateLimit(t *testing.T) {
-	testRateLimit(t, ironmqManager(), &msgqueue.Options{
+	testRateLimit(t, ironmqManager(), &msgqueue.QueueOptions{
 		Name: queueName("ironmq-rate-limit"),
 	})
 }
 
 func TestIronmqErrorDelay(t *testing.T) {
-	testErrorDelay(t, ironmqManager(), &msgqueue.Options{
+	testErrorDelay(t, ironmqManager(), &msgqueue.QueueOptions{
 		Name: queueName("ironmq-delayer"),
 	})
 }
 
 func TestIronmqWorkerLimit(t *testing.T) {
-	testWorkerLimit(t, ironmqManager(), &msgqueue.Options{
+	testWorkerLimit(t, ironmqManager(), &msgqueue.QueueOptions{
 		Name: queueName("worker-limit"),
 	})
 }
@@ -86,7 +86,7 @@ func TestIronmqInvalidCredentials(t *testing.T) {
 		ProjectId: "123",
 	}
 	manager := ironmq.NewManager(settings)
-	testInvalidCredentials(t, manager, &msgqueue.Options{
+	testInvalidCredentials(t, manager, &msgqueue.QueueOptions{
 		Name: queueName("invalid-credentials"),
 	})
 }
@@ -95,7 +95,7 @@ func TestIronmqInvalidCredentialsAndCompress(t *testing.T) {
 	manager := ironmq.NewManager(&iron_config.Settings{
 		ProjectId: "123",
 	})
-	testInvalidCredentials(t, manager, &msgqueue.Options{
+	testInvalidCredentials(t, manager, &msgqueue.QueueOptions{
 		Name:     queueName("invalid-credentials-and-compress"),
 		Compress: true,
 	})

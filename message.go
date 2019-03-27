@@ -39,7 +39,7 @@ type Message struct {
 	// The number of times the message has been reserved or released.
 	ReservedCount int
 
-	Err error
+	StickyErr error
 }
 
 func NewMessage(args ...interface{}) *Message {

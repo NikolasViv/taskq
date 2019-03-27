@@ -19,7 +19,7 @@ type BatcherOptions struct {
 
 func (opt *BatcherOptions) init(p *Processor) {
 	if opt.RetryLimit == 0 {
-		opt.RetryLimit = p.Options().RetryLimit
+		opt.RetryLimit = 3
 	}
 	if opt.Timeout == 0 {
 		opt.Timeout = 3 * time.Second
@@ -102,10 +102,7 @@ func (b *Batcher) stopTimer() {
 func (b *Batcher) process(batch []*Message) {
 	err := b.opt.Handler(batch)
 	for _, msg := range batch {
-		if err != nil && msg.Err == nil {
-			msg.Err = err
-		}
-		b.p.Put(msg)
+		b.p.Put(msg, err)
 	}
 }
 
