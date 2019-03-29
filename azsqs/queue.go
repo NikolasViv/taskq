@@ -89,13 +89,12 @@ func (q *Queue) initAddQueue() {
 		GroupName: q.opt.GroupName,
 
 		BufferSize: 1000,
-		RetryLimit: 3,
-		MinBackoff: time.Second,
-
-		Redis: q.opt.Redis,
+		Redis:      q.opt.Redis,
 	})
 	q.addQueue.NewTask(&msgqueue.TaskOptions{
-		Handler: msgqueue.HandlerFunc(q.addBatcherAdd),
+		Handler:    msgqueue.HandlerFunc(q.addBatcherAdd),
+		RetryLimit: 3,
+		MinBackoff: time.Second,
 	})
 
 	q.addBatcher = msgqueue.NewBatcher(q.addQueue.Processor(), &msgqueue.BatcherOptions{
@@ -110,13 +109,12 @@ func (q *Queue) initDelQueue() {
 		GroupName: q.opt.GroupName,
 
 		BufferSize: 1000,
-		RetryLimit: 3,
-		MinBackoff: time.Second,
-
-		Redis: q.opt.Redis,
+		Redis:      q.opt.Redis,
 	})
 	q.delQueue.NewTask(&msgqueue.TaskOptions{
-		Handler: msgqueue.HandlerFunc(q.delBatcherAdd),
+		Handler:    msgqueue.HandlerFunc(q.delBatcherAdd),
+		RetryLimit: 3,
+		MinBackoff: time.Second,
 	})
 
 	q.delBatcher = msgqueue.NewBatcher(q.delQueue.Processor(), &msgqueue.BatcherOptions{
@@ -371,7 +369,7 @@ func (q *Queue) addBatch(msgs []*msgqueue.Message) error {
 			return err
 		}
 
-		body, err := msg.EncodeBody(q.opt.Compress)
+		body, err := msg.MarshalBody()
 		if err != nil {
 			internal.Logf("azsqs: EncodeBody failed: %s", err)
 			continue
@@ -447,7 +445,7 @@ func (q *Queue) batchSize(batch []*msgqueue.Message) int {
 			continue
 		}
 
-		body, err := msg.EncodeBody(q.opt.Compress)
+		body, err := msg.MarshalBody()
 		if err != nil {
 			internal.Logf("azsqs: Message.EncodeBody failed: %s", err)
 			continue

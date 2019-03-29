@@ -85,13 +85,12 @@ func (q *Queue) initAddQueue() {
 		GroupName: q.opt.GroupName,
 
 		BufferSize: 1000,
-		RetryLimit: 3,
-		MinBackoff: time.Second,
-
-		Redis: q.opt.Redis,
+		Redis:      q.opt.Redis,
 	})
 	q.addTask = q.addQueue.NewTask(&msgqueue.TaskOptions{
-		Handler: msgqueue.HandlerFunc(q.add),
+		Handler:    msgqueue.HandlerFunc(q.add),
+		RetryLimit: 3,
+		MinBackoff: time.Second,
 	})
 }
 
@@ -101,13 +100,12 @@ func (q *Queue) initDelQueue() {
 		GroupName: q.opt.GroupName,
 
 		BufferSize: 1000,
-		RetryLimit: 3,
-		MinBackoff: time.Second,
-
-		Redis: q.opt.Redis,
+		Redis:      q.opt.Redis,
 	})
 	q.delTask = q.delQueue.NewTask(&msgqueue.TaskOptions{
-		Handler: msgqueue.HandlerFunc(q.delBatcherAdd),
+		Handler:    msgqueue.HandlerFunc(q.delBatcherAdd),
+		RetryLimit: 3,
+		MinBackoff: time.Second,
 	})
 	q.delBatcher = msgqueue.NewBatcher(q.delQueue.Processor(), &msgqueue.BatcherOptions{
 		Handler:     q.deleteBatch,
@@ -247,7 +245,7 @@ func (q *Queue) add(msg *msgqueue.Message) error {
 		return err
 	}
 
-	body, err := msg.EncodeBody(q.opt.Compress)
+	body, err := msg.MarshalBody()
 	if err != nil {
 		return err
 	}

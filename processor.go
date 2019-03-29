@@ -17,6 +17,8 @@ import (
 const timePrecision = time.Microsecond
 const stopTimeout = 30 * time.Second
 
+var ErrAsyncTask = errors.New("msgqueue: async task")
+
 type Delayer interface {
 	Delay() time.Duration
 }
@@ -660,19 +662,32 @@ func (p *Processor) process(msg *Message) error {
 		return nil
 	}
 
-	task := p.q.Task(msg.TaskName)
-	if task == nil {
-		return fmt.Errorf("msgqueue: %s does not have task=%q", p.q, msg.TaskName)
+	task, err := p.task(msg.TaskName)
+	if err != nil {
+		return err
 	}
 
-	err := task.HandleMessage(msg)
+	err = task.HandleMessage(msg)
 	if err == nil {
 		p.resetPause()
+	}
+	if err != ErrAsyncTask {
+		p.Put(msg, err)
+	}
+	return err
+}
+
+func (p *Processor) Put(msg *Message, err error) {
+	if err == nil {
 		atomic.AddUint32(&p.processed, 1)
 		p.delete(msg, err)
-		return nil
+		return
 	}
 
+	task, err := p.task(msg.TaskName)
+	if err != nil {
+		panic(err)
+	}
 	taskOpt := task.Options()
 
 	atomic.AddUint32(&p.errCount, 1)
@@ -684,20 +699,6 @@ func (p *Processor) process(msg *Message) error {
 	} else {
 		atomic.AddUint32(&p.fails, 1)
 		p.delete(msg, err)
-	}
-
-	return err
-}
-
-// Purge discards messages from the internal queue.
-func (p *Processor) Purge() error {
-	for {
-		select {
-		case msg := <-p.buffer:
-			p.delete(msg, nil)
-		default:
-			return nil
-		}
 	}
 }
 
@@ -741,7 +742,7 @@ func (p *Processor) delete(msg *Message, err error) {
 			p.q, msg.ReservedCount, err)
 
 		msg.StickyErr = err
-		if err := p.q.Task(msg.TaskName).HandleMessage(msg); err != nil {
+		if err := p.q.GetTask(msg.TaskName).HandleMessage(msg); err != nil {
 			internal.Logf("%s fallback handler failed: %s", p.q, err)
 		}
 	}
@@ -750,6 +751,18 @@ func (p *Processor) delete(msg *Message, err error) {
 		internal.Logf("%s Delete failed: %s", p.q, err)
 	}
 	atomic.AddUint32(&p.inFlight, ^uint32(0))
+}
+
+// Purge discards messages from the internal queue.
+func (p *Processor) Purge() error {
+	for {
+		select {
+		case msg := <-p.buffer:
+			p.delete(msg, nil)
+		default:
+			return nil
+		}
+	}
 }
 
 func (p *Processor) updateAvgDuration(dur time.Duration) {
@@ -825,6 +838,14 @@ func (p *Processor) unlockWorker(id int32) {
 	if err := lock.Unlock(); err != nil {
 		internal.Logf("redlock.Unlock failed: %s", err)
 	}
+}
+
+func (p *Processor) task(taskName string) (*Task, error) {
+	task := p.q.GetTask(taskName)
+	if task == nil {
+		return nil, fmt.Errorf("msgqueue: %s does not have task=%q", p.q, taskName)
+	}
+	return task, nil
 }
 
 func closed(ch <-chan struct{}) bool {

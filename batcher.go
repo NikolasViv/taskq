@@ -1,26 +1,18 @@
 package msgqueue
 
 import (
-	"errors"
 	"sync"
 	"time"
 )
-
-var errBatched = errors.New("message is batched for later processing")
-var errBatchProcessed = errors.New("message is processed in a batch")
 
 type BatcherOptions struct {
 	Handler     func([]*Message) error
 	ShouldBatch func([]*Message, *Message) bool
 
-	RetryLimit int
-	Timeout    time.Duration
+	Timeout time.Duration
 }
 
 func (opt *BatcherOptions) init(p *Processor) {
-	if opt.RetryLimit == 0 {
-		opt.RetryLimit = 3
-	}
 	if opt.Timeout == 0 {
 		opt.Timeout = 3 * time.Second
 	}
@@ -84,10 +76,9 @@ func (b *Batcher) Add(msg *Message) error {
 
 	if len(batch) > 0 {
 		b.process(batch)
-		return errBatchProcessed
 	}
 
-	return errBatched
+	return ErrAsyncTask
 }
 
 func (b *Batcher) stopTimer() {
