@@ -9,7 +9,7 @@ type Queue struct {
 }
 
 func (q *Queue) GetTask(name string) *msgqueue.Task {
-	return nil
+	return q.tasks[name]
 }
 
 func (q *Queue) NewTask(opt *msgqueue.TaskOptions) *msgqueue.Task {

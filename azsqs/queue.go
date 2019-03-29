@@ -1,6 +1,7 @@
 package azsqs
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"strconv"
@@ -233,40 +234,45 @@ func (q *Queue) ReserveN(n int, reservationTimeout time.Duration, waitTimeout ti
 		return nil, err
 	}
 
-	msgs := make([]*msgqueue.Message, len(out.Messages))
-	for i, sqsMsg := range out.Messages {
-		var reservedCount int
-		if v, ok := sqsMsg.Attributes["ApproximateReceiveCount"]; ok {
-			var err error
-			reservedCount, err = strconv.Atoi(*v)
+	msgs := make([]*msgqueue.Message, 0, len(out.Messages))
+	for _, sqsMsg := range out.Messages {
+		msg := new(msgqueue.Message)
+
+		if *sqsMsg.Body != "_" {
+			b, err := base64.RawStdEncoding.DecodeString(*sqsMsg.Body)
+			if err != nil {
+				return nil, err
+			}
+
+			err = msg.UnmarshalBinary(b)
 			if err != nil {
 				return nil, err
 			}
 		}
 
-		var delay time.Duration
+		msg.ReservationID = *sqsMsg.ReceiptHandle
+
+		if v, ok := sqsMsg.Attributes["ApproximateReceiveCount"]; ok {
+			var err error
+			msg.ReservedCount, err = strconv.Atoi(*v)
+			if err != nil {
+				return nil, err
+			}
+		}
+
 		if v, ok := sqsMsg.MessageAttributes[delayUntilAttr]; ok {
 			until, err := time.Parse(time.RFC3339, *v.StringValue)
 			if err != nil {
 				return nil, err
 			}
 
-			delay = until.Sub(time.Now())
-			if delay < 0 {
-				delay = 0
+			msg.Delay = until.Sub(time.Now())
+			if msg.Delay < 0 {
+				msg.Delay = 0
 			}
 		}
 
-		if *sqsMsg.Body == "_" {
-			*sqsMsg.Body = ""
-		}
-
-		msgs[i] = &msgqueue.Message{
-			Body:          *sqsMsg.Body,
-			Delay:         delay,
-			ReservationId: *sqsMsg.ReceiptHandle,
-			ReservedCount: reservedCount,
-		}
+		msgs = append(msgs, msg)
 	}
 
 	return msgs, nil
@@ -275,7 +281,7 @@ func (q *Queue) ReserveN(n int, reservationTimeout time.Duration, waitTimeout ti
 func (q *Queue) Release(msg *msgqueue.Message) error {
 	in := &sqs.ChangeMessageVisibilityInput{
 		QueueUrl:          aws.String(q.queueURL()),
-		ReceiptHandle:     &msg.ReservationId,
+		ReceiptHandle:     &msg.ReservationID,
 		VisibilityTimeout: aws.Int64(int64(msg.Delay / time.Second)),
 	}
 	var err error
@@ -369,11 +375,13 @@ func (q *Queue) addBatch(msgs []*msgqueue.Message) error {
 			return err
 		}
 
-		body, err := msg.MarshalBody()
+		b, err := msg.MarshalBinary()
 		if err != nil {
-			internal.Logf("azsqs: EncodeBody failed: %s", err)
+			internal.Logf("azsqs: MarshalBinary failed: %s", err)
 			continue
 		}
+
+		body := base64.RawStdEncoding.EncodeToString(b)
 		if body == "" {
 			body = "_" // SQS requires body.
 		}
@@ -445,13 +453,13 @@ func (q *Queue) batchSize(batch []*msgqueue.Message) int {
 			continue
 		}
 
-		body, err := msg.MarshalBody()
+		b, err := msg.MarshalBinary()
 		if err != nil {
 			internal.Logf("azsqs: Message.EncodeBody failed: %s", err)
 			continue
 		}
 
-		size += len(body)
+		size += base64.RawStdEncoding.EncodedLen(len(b))
 	}
 	return size
 }
@@ -474,7 +482,7 @@ func (q *Queue) deleteBatch(msgs []*msgqueue.Message) error {
 
 		entries[i] = &sqs.DeleteMessageBatchRequestEntry{
 			Id:            aws.String(strconv.Itoa(i)),
-			ReceiptHandle: &msg.ReservationId,
+			ReceiptHandle: &msg.ReservationID,
 		}
 	}
 

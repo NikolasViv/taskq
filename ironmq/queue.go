@@ -1,6 +1,7 @@
 package ironmq
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"strings"
@@ -172,29 +173,38 @@ func (q *Queue) ReserveN(n int, reservationTimeout time.Duration, waitTimeout ti
 		return nil, err
 	}
 
-	msgs := make([]*msgqueue.Message, len(mqMsgs))
-	for i, mqMsg := range mqMsgs {
-		msgs[i] = &msgqueue.Message{
-			Id:   mqMsg.Id,
-			Body: mqMsg.Body,
-
-			ReservationId: mqMsg.ReservationId,
-			ReservedCount: mqMsg.ReservedCount,
+	msgs := make([]*msgqueue.Message, 0, len(mqMsgs))
+	for _, mqMsg := range mqMsgs {
+		b, err := base64.RawStdEncoding.DecodeString(mqMsg.Body)
+		if err != nil {
+			return nil, err
 		}
+
+		msg := new(msgqueue.Message)
+		err = msg.UnmarshalBinary(b)
+		if err != nil {
+			return nil, err
+		}
+
+		msg.Id = mqMsg.Id
+		msg.ReservationID = mqMsg.ReservationId
+		msg.ReservedCount = mqMsg.ReservedCount
+
+		msgs = append(msgs, msg)
 	}
 	return msgs, nil
 }
 
 func (q *Queue) Release(msg *msgqueue.Message) error {
 	return retry(func() error {
-		return q.q.ReleaseMessage(msg.Id, msg.ReservationId, int64(msg.Delay/time.Second))
+		return q.q.ReleaseMessage(msg.Id, msg.ReservationID, int64(msg.Delay/time.Second))
 	})
 }
 
 // Delete deletes the message from the queue.
 func (q *Queue) Delete(msg *msgqueue.Message) error {
 	err := retry(func() error {
-		return q.q.DeleteMessage(msg.Id, msg.ReservationId)
+		return q.q.DeleteMessage(msg.Id, msg.ReservationID)
 	})
 	if err == nil {
 		return nil
@@ -245,13 +255,13 @@ func (q *Queue) add(msg *msgqueue.Message) error {
 		return err
 	}
 
-	body, err := msg.MarshalBody()
+	b, err := msg.MarshalBinary()
 	if err != nil {
 		return err
 	}
 
 	id, err := q.q.PushMessage(mq.Message{
-		Body:  body,
+		Body:  base64.RawStdEncoding.EncodeToString(b),
 		Delay: int64(msg.Delay / time.Second),
 	})
 	if err != nil {
@@ -280,7 +290,7 @@ func (q *Queue) deleteBatch(msgs []*msgqueue.Message) error {
 
 		mqMsgs[i] = mq.Message{
 			Id:            msg.Id,
-			ReservationId: msg.ReservationId,
+			ReservationId: msg.ReservationID,
 		}
 	}
 

@@ -13,6 +13,11 @@ func WrapMessage(msg *msgqueue.Message) *msgqueue.Message {
 }
 
 func UnwrapMessage(msg *msgqueue.Message) (*msgqueue.Message, error) {
+	if len(msg.Args) != 1 {
+		err := fmt.Errorf("UnwrapMessage: got %d args, wanted 1", len(msg.Args))
+		return nil, err
+	}
+
 	msg, ok := msg.Args[0].(*msgqueue.Message)
 	if !ok {
 		err := fmt.Errorf("UnwrapMessage: got %v, wanted *msgqueue.Message", msg.Args)

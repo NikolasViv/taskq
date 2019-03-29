@@ -7,7 +7,6 @@ import (
 	"hash/fnv"
 	"time"
 
-	"github.com/go-msgqueue/msgqueue/internal"
 	"github.com/vmihailenco/msgpack"
 )
 
@@ -17,32 +16,32 @@ var ErrDuplicate = errors.New("queue: message with such name already exists")
 // Message is used to create and retrieve messages from a queue.
 type Message struct {
 	// SQS/IronMQ message id.
-	Id string
+	Id string `msgpack:"-"`
 
 	// Optional name for the message. Messages with the same name
 	// are processed only once.
-	Name string
+	Name string `msgpack:"-"`
 
 	// Task name.
 	TaskName string
 
 	// Delay specifies the duration the queue must wait
 	// before executing the message.
-	Delay time.Duration
+	Delay time.Duration `msgpack:"-"`
 
 	// Function args passed to the handler.
-	Args []interface{}
+	Args []interface{} `msgpack:"-"`
 
-	// Text representation of the Args.
-	Body string
+	// Binary representation of the args.
+	ArgsBin []byte
 
-	// SQS/IronMQ reservation id that is used to release/delete the message..
-	ReservationId string
+	// SQS/IronMQ reservation id that is used to release/delete the message.
+	ReservationID string `msgpack:"-"`
 
 	// The number of times the message has been reserved or released.
-	ReservedCount int
+	ReservedCount int `msgpack:"-"`
 
-	StickyErr error
+	StickyErr error `msgpack:"-"`
 }
 
 func NewMessage(args ...interface{}) *Message {
@@ -63,18 +62,28 @@ func (m *Message) SetDelayName(delay time.Duration, args ...interface{}) {
 	m.Delay = delay + 5*time.Second
 }
 
-func (m *Message) MarshalBody() (string, error) {
-	if m.Body != "" {
-		return m.Body, nil
+func (m *Message) MarshalArgs() ([]byte, error) {
+	if m.ArgsBin != nil {
+		return m.ArgsBin, nil
 	}
-
-	s, err := internal.EncodeArgs(m.Args, false)
+	b, err := msgpack.Marshal(m.Args)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
+	m.ArgsBin = b
+	return b, nil
+}
 
-	m.Body = s
-	return s, nil
+func (m *Message) MarshalBinary() ([]byte, error) {
+	_, err := m.MarshalArgs()
+	if err != nil {
+		return nil, err
+	}
+	return msgpack.Marshal(m)
+}
+
+func (m *Message) UnmarshalBinary(b []byte) error {
+	return msgpack.Unmarshal(b, m)
 }
 
 func timeSlot(period time.Duration) int64 {
