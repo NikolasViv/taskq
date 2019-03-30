@@ -51,7 +51,7 @@ func NewQueue(opt *msgqueue.QueueOptions) *Queue {
 	q := Queue{
 		opt: opt,
 	}
-	q.p = msgqueue.NewProcessor(&q, opt)
+	q.p = msgqueue.NewProcessor(&q)
 	if err := q.p.Start(); err != nil {
 		panic(err)
 	}
@@ -78,6 +78,10 @@ func (q *Queue) NewTask(opt *msgqueue.TaskOptions) *msgqueue.Task {
 
 func (q *Queue) GetTask(name string) *msgqueue.Task {
 	return q.base.GetTask(name)
+}
+
+func (q *Queue) RemoveTask(name string) {
+	q.base.RemoveTask(name)
 }
 
 func (q *Queue) Processor() *msgqueue.Processor {

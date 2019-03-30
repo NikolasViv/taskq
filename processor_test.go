@@ -518,8 +518,8 @@ func testWorkerLimit(t *testing.T, man msgqueue.Manager, opt *msgqueue.QueueOpti
 		}
 	}
 
-	p1 := msgqueue.StartProcessor(q, opt)
-	p2 := msgqueue.StartProcessor(q, opt)
+	p1 := msgqueue.StartProcessor(q)
+	p2 := msgqueue.StartProcessor(q)
 
 	timings := []time.Duration{0, time.Second, 2 * time.Second}
 	testTimings(t, ch, timings)
@@ -647,16 +647,17 @@ func purge(t *testing.T, q msgqueue.Queue) {
 		return
 	}
 
-	q = q.Clone()
 	_ = q.NewTask(&msgqueue.TaskOptions{
 		Handler: func() {},
 	})
 
-	p := msgqueue.NewProcessor(q, &msgqueue.QueueOptions{})
+	p := msgqueue.NewProcessor(q)
 	err = p.ProcessAll()
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	q.RemoveTask("default")
 }
 
 func eventually(fn func() error, timeout time.Duration) error {

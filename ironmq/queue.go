@@ -134,9 +134,13 @@ func (q *Queue) GetTask(name string) *msgqueue.Task {
 	return q.base.GetTask(name)
 }
 
+func (q *Queue) RemoveTask(name string) {
+	q.base.RemoveTask(name)
+}
+
 func (q *Queue) Processor() *msgqueue.Processor {
 	if q.p == nil {
-		q.p = msgqueue.NewProcessor(q, q.opt)
+		q.p = msgqueue.NewProcessor(q)
 	}
 	return q.p
 }

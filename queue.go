@@ -12,11 +12,13 @@ import (
 )
 
 type Queue interface {
+	Name() string
+	Options() *QueueOptions
+	Processor() *Processor
+
 	NewTask(opt *TaskOptions) *Task
 	GetTask(name string) *Task
-
-	Name() string
-	Processor() *Processor
+	RemoveTask(name string)
 
 	Len() (int, error)
 	Add(msg *Message) error

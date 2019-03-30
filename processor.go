@@ -138,12 +138,8 @@ type Processor struct {
 }
 
 // New creates new Processor for the queue using provided processing options.
-func NewProcessor(q Queue, opt *QueueOptions) *Processor {
-	if opt.Name == "" {
-		opt.Name = q.Name()
-	}
-	opt.Init()
-
+func NewProcessor(q Queue) *Processor {
+	opt := q.Options()
 	p := &Processor{
 		q:   q,
 		opt: opt,
@@ -160,8 +156,8 @@ func NewProcessor(q Queue, opt *QueueOptions) *Processor {
 }
 
 // Starts creates new Processor and starts it.
-func StartProcessor(q Queue, opt *QueueOptions) *Processor {
-	p := NewProcessor(q, opt)
+func StartProcessor(q Queue) *Processor {
+	p := NewProcessor(q)
 	if err := p.Start(); err != nil {
 		panic(err)
 	}
