@@ -32,7 +32,7 @@ func NewManager() msgqueue.Manager {
 }
 
 type Queue struct {
-	base.Queue
+	base base.Queue
 
 	opt *msgqueue.QueueOptions
 
@@ -70,6 +70,14 @@ func (q *Queue) String() string {
 
 func (q *Queue) Options() *msgqueue.QueueOptions {
 	return q.opt
+}
+
+func (q *Queue) NewTask(opt *msgqueue.TaskOptions) *msgqueue.Task {
+	return q.base.NewTask(q, opt)
+}
+
+func (q *Queue) GetTask(name string) *msgqueue.Task {
+	return q.base.GetTask(name)
 }
 
 func (q *Queue) Processor() *msgqueue.Processor {

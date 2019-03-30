@@ -30,7 +30,7 @@ type TaskOptions struct {
 
 func (opt *TaskOptions) init() {
 	if opt.Name == "" {
-		panic("TaskOptions.Name is required")
+		opt.Name = "default"
 	}
 	if opt.RetryLimit == 0 {
 		opt.RetryLimit = 64

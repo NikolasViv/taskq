@@ -647,9 +647,12 @@ func purge(t *testing.T, q msgqueue.Queue) {
 		return
 	}
 
-	p := msgqueue.NewProcessor(q, &msgqueue.QueueOptions{
+	q = q.Clone()
+	_ = q.NewTask(&msgqueue.TaskOptions{
 		Handler: func() {},
 	})
+
+	p := msgqueue.NewProcessor(q, &msgqueue.QueueOptions{})
 	err = p.ProcessAll()
 	if err != nil {
 		t.Fatal(err)
