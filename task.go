@@ -1,12 +1,17 @@
 package msgqueue
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type TaskOptions struct {
 	Name string
 
 	// Function called to process a message.
 	Handler interface{}
+	// Function called to process failed message.
+	FallbackHandler interface{}
 
 	// Compress data before sending to the queue.
 	Compress bool
@@ -24,6 +29,9 @@ type TaskOptions struct {
 }
 
 func (opt *TaskOptions) init() {
+	if opt.Name == "" {
+		panic("TaskOptions.Name is required")
+	}
 	if opt.RetryLimit == 0 {
 		opt.RetryLimit = 64
 	}
@@ -38,13 +46,26 @@ func (opt *TaskOptions) init() {
 type Task struct {
 	queue Queue
 	opt   *TaskOptions
+
+	handler         Handler
+	fallbackHandler Handler
 }
 
 func NewTask(queue Queue, opt *TaskOptions) *Task {
-	return &Task{
+	opt.init()
+	t := &Task{
 		queue: queue,
 		opt:   opt,
 	}
+	t.handler = NewHandler(opt.Handler)
+	if opt.FallbackHandler != nil {
+		t.fallbackHandler = NewHandler(opt.FallbackHandler)
+	}
+	return t
+}
+
+func (t *Task) String() string {
+	return fmt.Sprintf("Task<Name=%s>", t.opt.Name)
 }
 
 func (t *Task) Options() *TaskOptions {
@@ -52,17 +73,31 @@ func (t *Task) Options() *TaskOptions {
 }
 
 func (t *Task) HandleMessage(msg *Message) error {
-	return nil
+	if msg.StickyErr != nil {
+		if t.fallbackHandler != nil {
+			return t.fallbackHandler.HandleMessage(msg)
+		}
+		return nil
+	}
+	return t.handler.HandleMessage(msg)
 }
 
-func (t *Task) Add(msg *Message) error {
-	return nil
+// AddMessage adds message to the queue.
+func (t *Task) AddMessage(msg *Message) error {
+	msg.TaskName = t.opt.Name
+	return t.queue.Add(msg)
 }
 
+// Call creates a message using the args and adds it to the queue.
 func (t *Task) Call(args ...interface{}) error {
-	return nil
+	msg := NewMessage(args...)
+	return t.AddMessage(msg)
 }
 
-func (t *Task) CallOnce(dur time.Duration, args ...interface{}) error {
-	return nil
+// CallOnce works like Call, but it returns ErrDuplicate if message
+// with such args was already added in a period.
+func (t *Task) CallOnce(period time.Duration, args ...interface{}) error {
+	msg := NewMessage(args...)
+	msg.SetDelayName(period, args...)
+	return t.AddMessage(msg)
 }

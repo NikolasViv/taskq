@@ -84,12 +84,12 @@ func (q *Queue) SetNoDelay(noDelay bool) {
 	q.noDelay = noDelay
 }
 
-// Close is CloseTimeout with 30 seconds timeout.
+// Close is like CloseTimeout with 30 seconds timeout.
 func (q *Queue) Close() error {
 	return q.CloseTimeout(30 * time.Second)
 }
 
-// Close closes the queue waiting for pending messages to be processed.
+// CloseTimeout closes the queue waiting for pending messages to be processed.
 func (q *Queue) CloseTimeout(timeout time.Duration) error {
 	defer unregisterQueue(q)
 
@@ -116,6 +116,9 @@ func (q *Queue) Len() (int, error) {
 
 // Add adds message to the queue.
 func (q *Queue) Add(msg *msgqueue.Message) error {
+	if msg.TaskName == "" {
+		return internal.ErrTaskNameRequired
+	}
 	if !q.isUniqueName(msg.Name) {
 		return msgqueue.ErrDuplicate
 	}

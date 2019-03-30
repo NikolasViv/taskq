@@ -55,9 +55,11 @@ type Queue struct {
 	opt       *msgqueue.QueueOptions
 
 	addQueue   *memqueue.Queue
+	addTask    *msgqueue.Task
 	addBatcher *msgqueue.Batcher
 
 	delQueue   *memqueue.Queue
+	delTask    *msgqueue.Task
 	delBatcher *msgqueue.Batcher
 
 	mu        sync.RWMutex
@@ -92,7 +94,7 @@ func (q *Queue) initAddQueue() {
 		BufferSize: 1000,
 		Redis:      q.opt.Redis,
 	})
-	q.addQueue.NewTask(&msgqueue.TaskOptions{
+	q.addTask = q.addQueue.NewTask(&msgqueue.TaskOptions{
 		Handler:    msgqueue.HandlerFunc(q.addBatcherAdd),
 		RetryLimit: 3,
 		MinBackoff: time.Second,
@@ -112,7 +114,7 @@ func (q *Queue) initDelQueue() {
 		BufferSize: 1000,
 		Redis:      q.opt.Redis,
 	})
-	q.delQueue.NewTask(&msgqueue.TaskOptions{
+	q.delTask = q.delQueue.NewTask(&msgqueue.TaskOptions{
 		Handler:    msgqueue.HandlerFunc(q.delBatcherAdd),
 		RetryLimit: 3,
 		MinBackoff: time.Second,
@@ -167,8 +169,11 @@ func (q *Queue) Len() (int, error) {
 
 // Add adds message to the queue.
 func (q *Queue) Add(msg *msgqueue.Message) error {
+	if msg.TaskName == "" {
+		return internal.ErrTaskNameRequired
+	}
 	msg = msgutil.WrapMessage(msg)
-	return q.addQueue.Add(msg)
+	return q.addTask.AddMessage(msg)
 }
 
 func (q *Queue) queueURL() string {
@@ -303,7 +308,7 @@ func (q *Queue) Release(msg *msgqueue.Message) error {
 
 // Delete deletes the message from the queue.
 func (q *Queue) Delete(msg *msgqueue.Message) error {
-	return q.delQueue.Add(msgutil.WrapMessage(msg))
+	return q.delTask.AddMessage(msgutil.WrapMessage(msg))
 }
 
 // Purge deletes all messages from the queue using SQS API.
@@ -315,12 +320,12 @@ func (q *Queue) Purge() error {
 	return err
 }
 
-// Close is CloseTimeout with 30 seconds timeout.
+// Close is like CloseTimeout with 30 seconds timeout.
 func (q *Queue) Close() error {
 	return q.CloseTimeout(30 * time.Second)
 }
 
-// Close closes the queue waiting for pending messages to be processed.
+// CloseTimeout closes the queue waiting for pending messages to be processed.
 func (q *Queue) CloseTimeout(timeout time.Duration) error {
 	var firstErr error
 

@@ -7,6 +7,7 @@ import (
 	"hash/fnv"
 	"time"
 
+	"github.com/go-msgqueue/msgqueue/internal"
 	"github.com/vmihailenco/msgpack"
 )
 
@@ -16,7 +17,7 @@ var ErrDuplicate = errors.New("queue: message with such name already exists")
 // Message is used to create and retrieve messages from a queue.
 type Message struct {
 	// SQS/IronMQ message id.
-	Id string `msgpack:"-"`
+	ID string `msgpack:"-"`
 
 	// Optional name for the message. Messages with the same name
 	// are processed only once.
@@ -42,6 +43,8 @@ type Message struct {
 	ReservedCount int `msgpack:"-"`
 
 	StickyErr error `msgpack:"-"`
+
+	bin []byte
 }
 
 func NewMessage(args ...interface{}) *Message {
@@ -52,7 +55,7 @@ func NewMessage(args ...interface{}) *Message {
 
 func (m *Message) String() string {
 	return fmt.Sprintf("Message<Id=%q Name=%q ReservedCount=%d>",
-		m.Id, m.Name, m.ReservedCount)
+		m.ID, m.Name, m.ReservedCount)
 }
 
 // SetDelayName sets delay and generates message name from the args.
@@ -75,11 +78,25 @@ func (m *Message) MarshalArgs() ([]byte, error) {
 }
 
 func (m *Message) MarshalBinary() ([]byte, error) {
+	if m.TaskName == "" {
+		return nil, internal.ErrTaskNameRequired
+	}
+	if m.bin != nil {
+		return m.bin, nil
+	}
+
 	_, err := m.MarshalArgs()
 	if err != nil {
 		return nil, err
 	}
-	return msgpack.Marshal(m)
+
+	b, err := msgpack.Marshal(m)
+	if err != nil {
+		return nil, err
+	}
+
+	m.bin = b
+	return b, nil
 }
 
 func (m *Message) UnmarshalBinary(b []byte) error {

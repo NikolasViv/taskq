@@ -31,13 +31,6 @@ func TestSQSProcessor(t *testing.T) {
 	})
 }
 
-func TestSQSCompress(t *testing.T) {
-	testProcessor(t, azsqsManager(), &msgqueue.QueueOptions{
-		Name:     queueName("compress"),
-		Compress: true,
-	})
-}
-
 func TestSQSFallback(t *testing.T) {
 	testFallback(t, azsqsManager(), &msgqueue.QueueOptions{
 		Name: queueName("fallback"),
@@ -96,14 +89,6 @@ func TestSQSInvalidCredentials(t *testing.T) {
 	man := azsqs.NewManager(awsSQS(), "123")
 	testInvalidCredentials(t, man, &msgqueue.QueueOptions{
 		Name: queueName("invalid-credentials"),
-	})
-}
-
-func TestSQSInvalidCredentialsAndCompress(t *testing.T) {
-	man := azsqs.NewManager(awsSQS(), "123")
-	testInvalidCredentials(t, man, &msgqueue.QueueOptions{
-		Name:     queueName("invalid-credentials-and-compress"),
-		Compress: true,
 	})
 }
 

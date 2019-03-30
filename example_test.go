@@ -24,7 +24,8 @@ func timeSinceCeil(start time.Time) time.Duration {
 
 func Example_retryOnError() {
 	start := time.Now()
-	q := memqueue.NewQueue(&msgqueue.QueueOptions{
+	q := memqueue.NewQueue(&msgqueue.QueueOptions{})
+	task := q.NewTask(&msgqueue.TaskOptions{
 		Handler: func() error {
 			fmt.Println("retried in", timeSince(start))
 			return errors.New("fake error")
@@ -33,7 +34,7 @@ func Example_retryOnError() {
 		MinBackoff: time.Second,
 	})
 
-	q.Call()
+	task.Call()
 
 	// Wait for all messages to be processed.
 	_ = q.Close()
@@ -45,7 +46,8 @@ func Example_retryOnError() {
 
 func Example_messageDelay() {
 	start := time.Now()
-	q := memqueue.NewQueue(&msgqueue.QueueOptions{
+	q := memqueue.NewQueue(&msgqueue.QueueOptions{})
+	task := q.NewTask(&msgqueue.TaskOptions{
 		Handler: func() {
 			fmt.Println("processed with delay", timeSince(start))
 		},
@@ -53,7 +55,7 @@ func Example_messageDelay() {
 
 	msg := msgqueue.NewMessage()
 	msg.Delay = time.Second
-	q.Add(msg)
+	_ = task.AddMessage(msg)
 
 	// Wait for all messages to be processed.
 	_ = q.Close()
@@ -64,14 +66,16 @@ func Example_messageDelay() {
 func Example_rateLimit() {
 	start := time.Now()
 	q := memqueue.NewQueue(&msgqueue.QueueOptions{
-		Handler:   func() {},
 		Redis:     redisRing(),
 		RateLimit: rate.Every(time.Second),
+	})
+	task := q.NewTask(&msgqueue.TaskOptions{
+		Handler: func() {},
 	})
 
 	const n = 5
 	for i := 0; i < n; i++ {
-		q.Call()
+		_ = task.Call()
 	}
 
 	// Wait for all messages to be processed.
@@ -83,16 +87,18 @@ func Example_rateLimit() {
 
 func Example_once() {
 	q := memqueue.NewQueue(&msgqueue.QueueOptions{
+		Redis:     redisRing(),
+		RateLimit: rate.Every(time.Second),
+	})
+	task := q.NewTask(&msgqueue.TaskOptions{
 		Handler: func(name string) {
 			fmt.Println("hello", name)
 		},
-		Redis:     redisRing(),
-		RateLimit: rate.Every(time.Second),
 	})
 
 	for i := 0; i < 10; i++ {
 		// Call once in a second.
-		q.CallOnce(time.Second, "world")
+		_ = task.CallOnce(time.Second, "world")
 	}
 
 	// Wait for all messages to be processed.

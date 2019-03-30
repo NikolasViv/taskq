@@ -20,13 +20,6 @@ func TestIronmqProcessor(t *testing.T) {
 	})
 }
 
-func TestIronmqCompress(t *testing.T) {
-	testProcessor(t, ironmqManager(), &msgqueue.QueueOptions{
-		Name:     queueName("ironmq-compress"),
-		Compress: true,
-	})
-}
-
 func TestIronmqFallback(t *testing.T) {
 	testFallback(t, ironmqManager(), &msgqueue.QueueOptions{
 		Name: queueName("ironmq-fallback"),
@@ -88,15 +81,5 @@ func TestIronmqInvalidCredentials(t *testing.T) {
 	manager := ironmq.NewManager(settings)
 	testInvalidCredentials(t, manager, &msgqueue.QueueOptions{
 		Name: queueName("invalid-credentials"),
-	})
-}
-
-func TestIronmqInvalidCredentialsAndCompress(t *testing.T) {
-	manager := ironmq.NewManager(&iron_config.Settings{
-		ProjectId: "123",
-	})
-	testInvalidCredentials(t, manager, &msgqueue.QueueOptions{
-		Name:     queueName("invalid-credentials-and-compress"),
-		Compress: true,
 	})
 }

@@ -148,8 +148,11 @@ func (q *Queue) Len() (int, error) {
 
 // Add adds message to the queue.
 func (q *Queue) Add(msg *msgqueue.Message) error {
+	if msg.TaskName == "" {
+		return internal.ErrTaskNameRequired
+	}
 	msg = msgutil.WrapMessage(msg)
-	return q.addTask.Add(msg)
+	return q.addTask.AddMessage(msg)
 }
 
 func (q *Queue) ReserveN(n int, reservationTimeout time.Duration, waitTimeout time.Duration) ([]*msgqueue.Message, error) {
@@ -186,7 +189,7 @@ func (q *Queue) ReserveN(n int, reservationTimeout time.Duration, waitTimeout ti
 			return nil, err
 		}
 
-		msg.Id = mqMsg.Id
+		msg.ID = mqMsg.Id
 		msg.ReservationID = mqMsg.ReservationId
 		msg.ReservedCount = mqMsg.ReservedCount
 
@@ -197,14 +200,14 @@ func (q *Queue) ReserveN(n int, reservationTimeout time.Duration, waitTimeout ti
 
 func (q *Queue) Release(msg *msgqueue.Message) error {
 	return retry(func() error {
-		return q.q.ReleaseMessage(msg.Id, msg.ReservationID, int64(msg.Delay/time.Second))
+		return q.q.ReleaseMessage(msg.ID, msg.ReservationID, int64(msg.Delay/time.Second))
 	})
 }
 
 // Delete deletes the message from the queue.
 func (q *Queue) Delete(msg *msgqueue.Message) error {
 	err := retry(func() error {
-		return q.q.DeleteMessage(msg.Id, msg.ReservationID)
+		return q.q.DeleteMessage(msg.ID, msg.ReservationID)
 	})
 	if err == nil {
 		return nil
@@ -220,12 +223,12 @@ func (q *Queue) Purge() error {
 	return q.q.Clear()
 }
 
-// Close is CloseTimeout with 30 seconds timeout.
+// Close is like CloseTimeout with 30 seconds timeout.
 func (q *Queue) Close() error {
 	return q.CloseTimeout(30 * time.Second)
 }
 
-// Close closes the queue waiting for pending messages to be processed.
+// CloseTimeout closes the queue waiting for pending messages to be processed.
 func (q *Queue) CloseTimeout(timeout time.Duration) error {
 	var firstErr error
 
@@ -268,7 +271,7 @@ func (q *Queue) add(msg *msgqueue.Message) error {
 		return err
 	}
 
-	msg.Id = id
+	msg.ID = id
 	return nil
 }
 
@@ -289,7 +292,7 @@ func (q *Queue) deleteBatch(msgs []*msgqueue.Message) error {
 		}
 
 		mqMsgs[i] = mq.Message{
-			Id:            msg.Id,
+			Id:            msg.ID,
 			ReservationId: msg.ReservationID,
 		}
 	}
